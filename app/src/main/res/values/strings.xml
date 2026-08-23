@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">PSD WebP Converter</string>
+    <string name="select_files">Select files / folder</string>
+    <string name="start_conversion">Start conversion</string>
+    <string name="output_format">Output format</string>
+    <string name="quality">Quality</string>
+    <string name="lossless">Lossless</string>
+    <string name="psd_visible_only">PSD: visible layers only</string>
+    <string name="psd_export_layers">Export individual layers</string>
+    <string name="progress_notification_title">Converting files…</string>
+    <string name="conversion_complete">Conversion finished</string>
+    <string name="cancel">Cancel</string>
+</resources>
