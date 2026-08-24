@@ -8,6 +8,20 @@ android {
     namespace = "com.convert.psdwebp"
     compileSdk = 35
 
+    // Same keystore for debug + release → new APKs always install over older ones
+    // (pattern copied from refboard)
+    signingConfigs {
+        create("shared") {
+            val ks = rootProject.file("app/psdwebp.keystore")
+            if (ks.exists()) {
+                storeFile = ks
+                storePassword = "android"
+                keyAlias = "convert"
+                keyPassword = "android"
+            }
+        }
+    }
+
     defaultConfig {
         applicationId = "com.convert.psdwebp"
         minSdk = 26
@@ -22,31 +36,18 @@ android {
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
-    signingConfigs {
-        create("release") {
-            val keystorePropertiesFile = rootProject.file("keystore.properties")
-            if (keystorePropertiesFile.exists()) {
-                val keystoreProperties = java.util.Properties()
-                keystoreProperties.load(java.io.FileInputStream(keystorePropertiesFile))
-                storeFile = file(keystoreProperties["storeFile"] as String)
-                storePassword = keystoreProperties["storePassword"] as String
-                keyAlias = keystoreProperties["keyAlias"] as String
-                keyPassword = keystoreProperties["keyPassword"] as String
-            }
-        }
-    }
-
     buildTypes {
+        debug {
+            isMinifyEnabled = false
+            signingConfig = signingConfigs.getByName("shared")
+        }
         release {
             isMinifyEnabled = false
+            signingConfig = signingConfigs.getByName("shared")
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
             )
-            signingConfig = signingConfigs.getByName("release")
-        }
-        debug {
-            applicationIdSuffix = ".debug"
         }
     }
 
@@ -64,6 +65,9 @@ android {
         jniLibs {
             useLegacyPackaging = true
         }
+        resources {
+            excludes += "/META-INF/{AL2.0,LGPL2.1}"
+        }
     }
 }
 
@@ -74,7 +78,6 @@ chaquopy {
             install("psd-tools")
             install("Pillow")
             install("numpy")
-            // Add more if needed later (e.g. "psd-tools[composite]")
         }
     }
 }
