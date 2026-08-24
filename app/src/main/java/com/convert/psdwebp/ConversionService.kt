@@ -128,36 +128,35 @@ class ConversionService : Service() {
         for ((uri, relName) in jobs) {
             if (cancelled) break
             try {
-                val local = copyUriToFile(uri, workDir, relName) ?: run {
-                    failed++; processed++
-                    updateNotification(processed, total, pct(processed, total), "$processed / $total")
-                    continue
-                }
-                val stem = relName.substringBeforeLast('.')
-                val relDir = relName.substringBeforeLast('/', missingDelimiterValue = "")
-                val outDir = if (relDir.isNotEmpty()) File(finalOutRoot, relDir) else finalOutRoot
-                outDir.mkdirs()
-                val outFile = File(outDir, "$stem.$fmt")
-
-                val result = module.callAttr(
-                    "process_file",
-                    local.absolutePath,
-                    outFile.absolutePath,
-                    fmt,
-                    quality,
-                    lossless,
-                    true,  // visible_only (unused for raster)
-                    true,  // export_layers
-                    cropVisible
-                )
-                // PyObject map
-                val okFlag = try { result.callAttr("get", "ok").toBoolean() } catch (_: Exception) { false }
-                val wasRepaired = try { result.callAttr("get", "repaired").toBoolean() } catch (_: Exception) { false }
-                if (okFlag) {
-                    ok++
-                    if (wasRepaired) repaired++
-                } else {
+                val local = copyUriToFile(uri, workDir, relName)
+                if (local == null) {
                     failed++
+                } else {
+                    val stem = relName.substringBeforeLast('.')
+                    val relDir = relName.substringBeforeLast('/', missingDelimiterValue = "")
+                    val outDir = if (relDir.isNotEmpty()) File(finalOutRoot, relDir) else finalOutRoot
+                    outDir.mkdirs()
+                    val outFile = File(outDir, "$stem.$fmt")
+
+                    val result = module.callAttr(
+                        "process_file",
+                        local.absolutePath,
+                        outFile.absolutePath,
+                        fmt,
+                        quality,
+                        lossless,
+                        true,  // visible_only (unused for raster)
+                        true,  // export_layers
+                        cropVisible
+                    )
+                    val okFlag = try { result.callAttr("get", "ok").toBoolean() } catch (_: Exception) { false }
+                    val wasRepaired = try { result.callAttr("get", "repaired").toBoolean() } catch (_: Exception) { false }
+                    if (okFlag) {
+                        ok++
+                        if (wasRepaired) repaired++
+                    } else {
+                        failed++
+                    }
                 }
             } catch (e: Exception) {
                 e.printStackTrace()
