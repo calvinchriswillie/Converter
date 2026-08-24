@@ -9,7 +9,6 @@ android {
     compileSdk = 35
 
     // Same keystore for debug + release → new APKs always install over older ones
-    // (pattern copied from refboard)
     signingConfigs {
         create("shared") {
             val ks = rootProject.file("app/psdwebp.keystore")
@@ -26,11 +25,12 @@ android {
         applicationId = "com.convert.psdwebp"
         minSdk = 26
         targetSdk = 35
-        versionCode = 1
-        versionName = "1.0.0"
+        versionCode = 2
+        versionName = "1.0.1"
 
         ndk {
-            abiFilters += listOf("arm64-v8a", "armeabi-v7a", "x86_64")
+            // Start with arm64 only to speed builds; add others later if needed
+            abiFilters += listOf("arm64-v8a")
         }
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
@@ -75,9 +75,16 @@ chaquopy {
     defaultConfig {
         version = "3.11"
         pip {
-            install("psd-tools")
+            // Chaquopy has prebuilt wheels for these
             install("Pillow")
             install("numpy")
+            // psd-tools pulls scikit-image/aggdraw which need meson (not available).
+            // Install without deps, then only the pure/prebuilt deps we need.
+            options("--no-deps")
+            install("psd-tools")
+            // pure-python deps of psd-tools
+            install("attrs")
+            install("packaging")
         }
     }
 }
