@@ -1,16 +1,17 @@
 # HISTORY – PSD WebP Converter
 
-All changes are recorded here. Newest first.
+Newest first.
+
+## 1.0.3 – 2026-08-24
+- Primary action: **Select folder (recursive)** – scans all subfolders
+- Output to **Download/<name>_Converted** (same structure) so MiXplorer can open it
+- Repair path for truncated/partial images (Pillow LOAD_TRUNCATED_IMAGES)
+- Crop to visible area toggle (non-transparent bbox)
+- Notification shows final output path
+- versionCode 4
 
 ## 1.0.2 – 2026-08-24
-- Fix: remove psd-tools (has C++ extension; Chaquopy cannot compile native code)
-- Raster conversion only for now (Pillow + numpy)
-- PSD returns a clear error until pure-Python path is added
-- versionCode 3
+- Dropped psd-tools (native C++); Pillow-only raster conversion
 
-## 1.0.1 – 2026-08-24
-- Attempted psd-tools --no-deps; still failed on native _rle.cpp
-- ABI arm64-v8a only
-
-## 1.0.0 – 2026-08-24
-- Initial scaffold, install-over keystore, build on push
+## 1.0.1 / 1.0.0
+- Scaffold, install-over keystore, build on push

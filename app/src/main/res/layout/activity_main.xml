@@ -15,26 +15,34 @@
             android:text="@string/app_name"
             android:textSize="22sp"
             android:textStyle="bold"
-            android:layout_marginBottom="16dp" />
+            android:layout_marginBottom="8dp" />
 
-        <Button
-            android:id="@+id/btnSelectFiles"
+        <TextView
+            android:id="@+id/tvHint"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:text="@string/select_files" />
+            android:text="Pick a folder to recursively convert all images in it and subfolders. Output goes to Download/&lt;name&gt;_Converted (same structure)."
+            android:textSize="13sp"
+            android:layout_marginBottom="12dp" />
 
         <Button
             android:id="@+id/btnSelectFolder"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:text="Select folder"
+            android:text="Select folder (recursive)" />
+
+        <Button
+            android:id="@+id/btnSelectFiles"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Select individual files"
             android:layout_marginTop="8dp" />
 
         <TextView
             android:id="@+id/tvSelected"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:text="No files selected"
+            android:text="No folder selected"
             android:layout_marginTop="8dp"
             android:layout_marginBottom="16dp" />
 
@@ -84,12 +92,21 @@
             android:layout_marginTop="8dp" />
 
         <com.google.android.material.switchmaterial.SwitchMaterial
+            android:id="@+id/switchCropVisible"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Crop to visible area (repair partial)"
+            android:checked="true"
+            android:layout_marginTop="8dp" />
+
+        <com.google.android.material.switchmaterial.SwitchMaterial
             android:id="@+id/switchVisibleOnly"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:text="@string/psd_visible_only"
             android:checked="true"
-            android:layout_marginTop="8dp" />
+            android:layout_marginTop="8dp"
+            android:visibility="gone" />
 
         <com.google.android.material.switchmaterial.SwitchMaterial
             android:id="@+id/switchExportLayers"
@@ -97,7 +114,8 @@
             android:layout_height="wrap_content"
             android:text="@string/psd_export_layers"
             android:checked="true"
-            android:layout_marginTop="8dp" />
+            android:layout_marginTop="8dp"
+            android:visibility="gone" />
 
         <Button
             android:id="@+id/btnStart"
@@ -109,7 +127,7 @@
         <TextView
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:text="Output is written to app private storage (Android/data/com.convert.psdwebp/files/converted). You can access it with a file manager that supports SAF."
+            android:text="Output is written to Download/&lt;folder&gt;_Converted so MiXplorer and Files can open it. Notification shows progress and final path."
             android:textSize="12sp"
             android:layout_marginTop="16dp" />
     </LinearLayout>
