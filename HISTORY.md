@@ -2,19 +2,15 @@
 
 All changes are recorded here. Newest first.
 
+## 1.0.2 – 2026-08-24
+- Fix: remove psd-tools (has C++ extension; Chaquopy cannot compile native code)
+- Raster conversion only for now (Pillow + numpy)
+- PSD returns a clear error until pure-Python path is added
+- versionCode 3
+
 ## 1.0.1 – 2026-08-24
-- Fix Chaquopy build: install psd-tools with `--no-deps` (avoids scikit-image/meson failure)
-- Keep only Pillow + numpy (Chaquopy wheels) + attrs/packaging
-- ABI reduced to arm64-v8a for faster first builds
-- versionCode 2
+- Attempted psd-tools --no-deps; still failed on native _rle.cpp
+- ABI arm64-v8a only
 
 ## 1.0.0 – 2026-08-24
-- Package name fixed: `com.convert.psdwebp`
-- Chaquopy + psd-tools + Pillow for conversion
-- Basic options: quality slider, lossless toggle, PSD visible-only / export-layers toggles
-- Output format selectable (default webp)
-- SAF file/folder picker + share/view intent support (MiXplorer compatible)
-- Foreground service + progress notification (count + %)
-- GitHub Actions: builds on every push, artifact retention-days = 1
-- **Install-over**: committed `app/psdwebp.keystore` used for both debug + release (same pattern as refboard)
-- Python conversion script with raster + PSD composite/layer export
+- Initial scaffold, install-over keystore, build on push
