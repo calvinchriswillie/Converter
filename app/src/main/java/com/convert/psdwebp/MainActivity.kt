@@ -37,7 +37,7 @@ class MainActivity : AppCompatActivity() {
         treeUri = uri
         fileUris.clear()
         sourceName = queryTreeName(uri) ?: "folder"
-        binding.tvSelected.text = "Folder: $sourceName\n(Output → Download/${sourceName}_Converted)"
+        binding.tvSelected.text = "Folder: $sourceName\n(Output → Android/data/.../files/${sourceName}_Converted)"
         binding.tvHint.text = "Recursive scan of all subfolders. Corrupt/partial images will be repaired when possible."
     }
 
@@ -56,7 +56,7 @@ class MainActivity : AppCompatActivity() {
             } catch (_: SecurityException) {}
         }
         sourceName = "files"
-        binding.tvSelected.text = "${uris.size} file(s) selected\n(Output → Download/files_Converted)"
+        binding.tvSelected.text = "${uris.size} file(s) selected\n(Output → Android/data/.../files/files_Converted)"
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -161,7 +161,7 @@ class MainActivity : AppCompatActivity() {
         ContextCompat.startForegroundService(this, serviceIntent)
         Toast.makeText(
             this,
-            "Started. Output: Download/${sourceName}_Converted",
+            "Started. See notification for path. Also _errors.log in output folder.",
             Toast.LENGTH_LONG
         ).show()
     }

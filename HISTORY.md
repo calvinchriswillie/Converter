@@ -2,14 +2,21 @@
 
 Newest first.
 
+## 1.0.5 – 2026-08-24
+- Fix: Python result ok as string "1"/"0" (Kotlin was always reading false)
+- Fix: write only to app external files (always writable; public Download blocked on Android 10+)
+- Write `_errors.log` in output folder with per-file failure reasons
+- Notification shows full output path when done
+- versionCode 6
+
 ## 1.0.4 – 2026-08-24
-- Fix Kotlin compile: remove `continue` inside inline lambda in ConversionService
+- Fix Kotlin continue-in-lambda compile error
 
 ## 1.0.3 – 2026-08-24
-- Recursive folder scan, Download/<name>_Converted output, corrupt repair, crop visible
+- Recursive folder, crop visible, corrupt repair
 
 ## 1.0.2 – 2026-08-24
-- Dropped psd-tools (native C++); Pillow-only raster
+- Dropped psd-tools native; Pillow only
 
-## 1.0.1 / 1.0.0
-- Scaffold, install-over keystore, build on push
+## 1.0.0 – 2026-08-24
+- Initial scaffold

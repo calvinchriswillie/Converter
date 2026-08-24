@@ -8,7 +8,6 @@ import android.app.Service
 import android.content.Intent
 import android.net.Uri
 import android.os.Build
-import android.os.Environment
 import android.os.IBinder
 import androidx.core.app.NotificationCompat
 import androidx.documentfile.provider.DocumentFile
@@ -18,11 +17,6 @@ import kotlinx.coroutines.*
 import java.io.File
 import java.io.FileOutputStream
 
-/**
- * Recursively walks a SAF tree (or list of files), converts images,
- * writes to <basename>_Converted mirroring structure under public Downloads
- * (or app external files as fallback). Matches Termux batch script intent.
- */
 class ConversionService : Service() {
 
     companion object {
@@ -37,7 +31,6 @@ class ConversionService : Service() {
         const val EXTRA_SOURCE_NAME = "source_name"
         private const val CHANNEL_ID = "conversion_channel"
         private const val NOTIF_ID = 1001
-
         private val IMAGE_EXTS = setOf(
             "png", "jpg", "jpeg", "tif", "tiff", "bmp", "gif", "webp"
         )
@@ -59,8 +52,7 @@ class ConversionService : Service() {
                 val quality = intent.getIntExtra(EXTRA_QUALITY, 80)
                 val lossless = intent.getBooleanExtra(EXTRA_LOSSLESS, false)
                 val cropVisible = intent.getBooleanExtra(EXTRA_CROP_VISIBLE, true)
-                val sourceName = intent.getStringExtra(EXTRA_SOURCE_NAME) ?: "Converted"
-
+                val sourceName = intent.getStringExtra(EXTRA_SOURCE_NAME) ?: "batch"
                 startForeground(NOTIF_ID, buildNotification(0, 0, 0, "Scanning…"))
                 job = scope.launch {
                     runConversion(uris, isTree, fmt, quality, lossless, cropVisible, sourceName)
@@ -84,36 +76,37 @@ class ConversionService : Service() {
         cropVisible: Boolean,
         sourceName: String
     ) {
-        if (!Python.isStarted()) {
-            Python.start(AndroidPlatform(this))
+        try {
+            if (!Python.isStarted()) {
+                Python.start(AndroidPlatform(this))
+            }
+        } catch (e: Exception) {
+            updateNotification(0, 0, 0, "Python start failed: ${e.message}")
+            stopSelf()
+            return
         }
+
         val py = Python.getInstance()
         val module = py.getModule("convert")
-
-        val workDir = File(cacheDir, "work").also { it.mkdirs() }
-
-        // Output: public Downloads/<name>_Converted  (easy to find in MiXplorer)
-        val outRoot = File(
-            Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS),
-            "${sourceName}_Converted"
-        )
-        val usePublic = try {
-            outRoot.mkdirs()
-            outRoot.canWrite()
-        } catch (_: Exception) {
-            false
+        val workDir = File(cacheDir, "work").also {
+            it.deleteRecursively()
+            it.mkdirs()
         }
-        val finalOutRoot = if (usePublic) outRoot else File(getExternalFilesDir(null), "${sourceName}_Converted").also { it.mkdirs() }
 
-        // Collect files
-        val jobs = mutableListOf<Pair<Uri, String>>() // uri -> relative path without ext change
+        val finalOutRoot = File(getExternalFilesDir(null), "${sourceName}_Converted").also {
+            it.mkdirs()
+        }
+        val errorLog = File(finalOutRoot, "_errors.log")
+        errorLog.writeText("Conversion started\nOutput: ${finalOutRoot.absolutePath}\n\n")
+
+        val jobs = mutableListOf<Pair<Uri, String>>()
         if (isTree && uris.isNotEmpty()) {
             val root = DocumentFile.fromTreeUri(this, uris[0])
             if (root != null) collectImages(root, "", jobs)
+            else errorLog.appendText("ERROR: could not open tree URI\n")
         } else {
             uris.forEachIndexed { i, u ->
-                val name = queryDisplayName(u) ?: "file_$i"
-                jobs.add(u to name)
+                jobs.add(u to (queryDisplayName(u) ?: "file_$i"))
             }
         }
 
@@ -122,8 +115,18 @@ class ConversionService : Service() {
         var ok = 0
         var repaired = 0
         var failed = 0
-
+        errorLog.appendText("Found $total image(s)\n\n")
         updateNotification(0, total, 0, "0 / $total")
+
+        if (total == 0) {
+            val msg = "No images found\n${finalOutRoot.absolutePath}"
+            errorLog.appendText("$msg\n")
+            getSystemService(NotificationManager::class.java)
+                .notify(NOTIF_ID, buildNotification(0, 0, 100, msg, finished = true))
+            stopForeground(STOP_FOREGROUND_DETACH)
+            stopSelf()
+            return
+        }
 
         for ((uri, relName) in jobs) {
             if (cancelled) break
@@ -131,6 +134,7 @@ class ConversionService : Service() {
                 val local = copyUriToFile(uri, workDir, relName)
                 if (local == null) {
                     failed++
+                    errorLog.appendText("FAIL copy: $relName\n")
                 } else {
                     val stem = relName.substringBeforeLast('.')
                     val relDir = relName.substringBeforeLast('/', missingDelimiterValue = "")
@@ -145,36 +149,47 @@ class ConversionService : Service() {
                         fmt,
                         quality,
                         lossless,
-                        true,  // visible_only (unused for raster)
-                        true,  // export_layers
+                        true,
+                        true,
                         cropVisible
                     )
-                    val okFlag = try { result.callAttr("get", "ok").toBoolean() } catch (_: Exception) { false }
-                    val wasRepaired = try { result.callAttr("get", "repaired").toBoolean() } catch (_: Exception) { false }
-                    if (okFlag) {
+                    val okStr = try { result.callAttr("get", "ok").toString() } catch (_: Exception) { "0" }
+                    val errStr = try { result.callAttr("get", "error").toString() } catch (_: Exception) { "" }
+                    val wasRepaired = try {
+                        result.callAttr("get", "repaired").toString() == "1"
+                    } catch (_: Exception) { false }
+
+                    if (okStr == "1") {
                         ok++
                         if (wasRepaired) repaired++
                     } else {
                         failed++
+                        errorLog.appendText("FAIL $relName → $errStr\n")
                     }
                 }
             } catch (e: Exception) {
-                e.printStackTrace()
                 failed++
+                errorLog.appendText("EXCEPTION $relName → ${e.message}\n")
+                e.printStackTrace()
             }
             processed++
-            updateNotification(processed, total, pct(processed, total), "$processed / $total · ok=$ok fail=$failed")
+            updateNotification(
+                processed, total, pct(processed, total),
+                "$processed / $total · ok=$ok fail=$failed"
+            )
         }
 
-        val summary = "Done: $ok ok, $repaired repaired, $failed failed → ${finalOutRoot.absolutePath}"
-        val nm = getSystemService(NotificationManager::class.java)
-        nm.notify(NOTIF_ID, buildNotification(processed, total, 100, summary, finished = true))
+        val summary = "Done: $ok ok, $repaired repaired, $failed failed\n${finalOutRoot.absolutePath}"
+        errorLog.appendText("\n$summary\n")
+        getSystemService(NotificationManager::class.java)
+            .notify(NOTIF_ID, buildNotification(processed, total, 100, summary, finished = true))
         stopForeground(STOP_FOREGROUND_DETACH)
         stopSelf()
     }
 
     private fun collectImages(dir: DocumentFile, rel: String, out: MutableList<Pair<Uri, String>>) {
-        for (f in dir.listFiles()) {
+        val files = dir.listFiles() ?: return
+        for (f in files) {
             if (cancelled) return
             if (f.isDirectory) {
                 val name = f.name ?: continue
@@ -183,8 +198,7 @@ class ConversionService : Service() {
                 val name = f.name ?: continue
                 val ext = name.substringAfterLast('.', "").lowercase()
                 if (ext in IMAGE_EXTS) {
-                    val relPath = if (rel.isEmpty()) name else "$rel/$name"
-                    out.add(f.uri to relPath)
+                    out.add(f.uri to (if (rel.isEmpty()) name else "$rel/$name"))
                 }
             }
         }
@@ -201,11 +215,11 @@ class ConversionService : Service() {
     private fun copyUriToFile(uri: Uri, dir: File, relName: String): File? {
         return try {
             val safe = relName.replace("..", "_").replace('/', '_')
-            val dest = File(dir, safe)
+            val dest = File(dir, "${System.currentTimeMillis()}_$safe")
             contentResolver.openInputStream(uri)?.use { input ->
                 FileOutputStream(dest).use { output -> input.copyTo(output) }
-            }
-            dest
+            } ?: return null
+            if (!dest.exists() || dest.length() == 0L) null else dest
         } catch (_: Exception) {
             null
         }
@@ -214,11 +228,7 @@ class ConversionService : Service() {
     private fun pct(done: Int, total: Int) = if (total > 0) done * 100 / total else 0
 
     private fun buildNotification(
-        processed: Int,
-        total: Int,
-        percent: Int,
-        text: String,
-        finished: Boolean = false
+        processed: Int, total: Int, percent: Int, text: String, finished: Boolean = false
     ): Notification {
         createChannel()
         val cancelIntent = Intent(this, ConversionService::class.java).apply { action = ACTION_CANCEL }
@@ -228,7 +238,6 @@ class ConversionService : Service() {
         )
         val title = if (finished) getString(R.string.conversion_complete)
         else getString(R.string.progress_notification_title)
-
         return NotificationCompat.Builder(this, CHANNEL_ID)
             .setContentTitle(title)
             .setContentText(text)
@@ -248,10 +257,9 @@ class ConversionService : Service() {
 
     private fun createChannel() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            val channel = NotificationChannel(
-                CHANNEL_ID, "File conversion", NotificationManager.IMPORTANCE_LOW
+            getSystemService(NotificationManager::class.java).createNotificationChannel(
+                NotificationChannel(CHANNEL_ID, "File conversion", NotificationManager.IMPORTANCE_LOW)
             )
-            getSystemService(NotificationManager::class.java).createNotificationChannel(channel)
         }
     }
 
